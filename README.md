@@ -1,6 +1,6 @@
 # regen-basic
 
-[![tests](https://github.com/uz0000/regen-synthetic/actions/workflows/tests.yml/badge.svg)](https://github.com/uz0000/regen-synthetic/actions/workflows/tests.yml)
+[![tests](https://github.com/uz0000/regen-basic/actions/workflows/tests.yml/badge.svg)](https://github.com/uz0000/regen-basic/actions/workflows/tests.yml)
 
 > This work is complete. The result is what it set out to measure; the code is
 > the evidence, kept runnable so the claim can be checked.
@@ -222,7 +222,7 @@ On the real 30k-row table with a declared analysis:
 |---|---|---|---|
 | bootstrap *(control)* | 0.006 | **4/4** | — |
 | independent *(control)* | 0.177 | **0/4** | — |
-| **regen-synthetic** | **0.037** | **1/4** | **0.4s** |
+| **regen-basic** | **0.037** | **1/4** | **0.4s** |
 | sdv-copula | 0.064 | **1/4** | 4.1s |
 | sdv-ctgan | 0.091 | **0/4** | 91s |
 

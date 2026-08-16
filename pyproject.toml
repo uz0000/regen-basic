@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "regen-synthetic"
+name = "regen-basic"
 version = "0.1.0"
 description = "A synthetic table generator paired with an independent check of whether a declared conclusion survives — and the measured finding that it largely does not."
 readme = "README.md"

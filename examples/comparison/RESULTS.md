@@ -16,7 +16,7 @@ between generators could really be a difference between their libraries.
 |---|---|
 | `bootstrap` | **positive control.** Resamples the real rows. Not usable as synthetic data — it *is* the real data — but it marks the ceiling. |
 | `independent` | **negative control.** Samples each column separately. Every column's own distribution is perfect and every relationship between columns is destroyed. |
-| `regen-synthetic` | this repo — one joint Gaussian copula over the whole table. |
+| `regen-basic` | this repo — one joint Gaussian copula over the whole table. |
 | `sdv-copula` | [SDV](https://sdv.dev)'s `GaussianCopulaSynthesizer`. The closest peer, and the most widely used synthetic-tabular library there is. |
 | `sdv-ctgan` | SDV's `CTGANSynthesizer` — a GAN. A genuinely different approach, and it encodes categories one-hot rather than ranking them. |
 
@@ -30,7 +30,7 @@ question is whether its coefficients come back the same.
 |---|---|---|---|---|
 | bootstrap *(control)* | 0 | 0.006 | **4/4** | — |
 | independent *(control)* | 0 | 0.177 | **0/4** | — |
-| **regen-synthetic** | 0 | **0.037** | **1/4** | **0.4s** |
+| **regen-basic** | 0 | **0.037** | **1/4** | **0.4s** |
 | sdv-copula | 0 | 0.064 | **1/4** | 4.1s |
 | sdv-ctgan *(60 epochs)* | 0 | 0.091 | **0/4** | 91s |
 
@@ -55,7 +55,7 @@ across every tool tested, not just this one.
 |---|---|---|---|---|
 | bootstrap *(control)* | 0 | 0.014 | **0.014** | — |
 | independent *(control)* | 0 | 0.218 | **0.657** | — |
-| **regen-synthetic** | 0 | **0.039** | **0.575** | **0.02s** |
+| **regen-basic** | 0 | **0.039** | **0.575** | **0.02s** |
 | sdv-copula | 0 | 0.060 | **0.569** | 1.7s |
 | sdv-ctgan (100 epochs) | 3 | 0.186 | 0.646 | 18s |
 | sdv-ctgan (300 epochs) | 1 | 0.072 | 0.465 | 30s |
