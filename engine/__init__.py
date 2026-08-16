@@ -1,5 +1,5 @@
 """
-Engine — the pieces basic/generate.py composes into a table generator.
+Engine — the pieces simulate/generate.py composes into a table generator.
 
 Pure Python. No LLM client, no agent framework, no network library.
 

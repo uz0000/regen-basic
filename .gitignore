@@ -4,16 +4,14 @@ __pycache__/
 .venv/
 .DS_Store
 
-# Demo run artifacts
-examples/_run/
-examples/transactions.csv
-examples/certifier_demo/certificates.json
+# Generated demo input (rebuild with: python examples/make_sample_data.py)
+examples/readings.csv
 
-# Campaign output
-regen-output/
+# Simulator output
+synth-output/
 
 # Python egg info
 *.egg-info/
 
-# Local model tokens / secrets
+# Local secrets
 .env

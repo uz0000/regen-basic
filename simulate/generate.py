@@ -1,20 +1,22 @@
 """
-Basic synthetic table generator — any table, no label column, no rare-event split.
+Simulate a table: model the joint distribution of a real table, draw new rows.
 
-REGEN's rare-event pipeline (engine/scout, engine/amplifier) and its estimand
-certifier (regen/) both solve narrower problems than "give me a synthetic
-version of this table." This module strips that down to the general case:
-fit one model of the whole table's joint distribution, sample new rows from
-it, gate the result on fidelity and a privacy floor.
+The goal is a stand-in for real data — something you can hand to a developer,
+a test suite, or a collaborator in place of records they should not see, that
+still behaves like the real thing.
 
-It is not a from-scratch generator. The sampling core (mixed continuous +
-categorical Gaussian copula) and the fidelity/privacy checks are the same
-functions REGEN's rare-event pipeline uses internally — reused here directly
-against the whole table instead of a normal/rare subset, because that split
-is exactly the part a generic tool doesn't need. See docs/BUILDLOG.md and
-docs/KNOWN_ISSUES.md in the source project for what shaped these functions
-(e.g. why the copula must be fit jointly over discrete + continuous columns
-together, not column-by-column — that was a real, previously-shipped bug).
+"Behaves like the real thing" is the hard part, and it is deliberately not
+just "every column has the right distribution." A generator that gets each
+column right in isolation can still scramble how columns move *together*,
+and everything interesting in a table lives in that joint structure. So the
+model here is one joint Gaussian copula fit over the whole table —
+continuous and categorical columns sharing a single latent correlation —
+rather than a per-column sampler.
+
+How far that gets you is an open question this repo tries to answer honestly
+rather than assume: see certify/ for an independent check of whether a real
+statistical conclusion survives the round trip, and examples/decision_check/
+for what happened when that check was pointed at this generator's own output.
 
 No LLM, no network. Deterministic given a seed.
 """
@@ -28,7 +30,12 @@ import numpy as np
 import pandas as pd
 
 from contracts.types import ColumnFidelity, FieldDict, FieldType
-from engine.auditor.fidelity import AuditorConfig, _correlation_delta, _eval_column
+from engine.auditor.fidelity import (
+    AuditorConfig,
+    _categorical_association_delta,
+    _correlation_delta,
+    _eval_column,
+)
 from engine.ingest.loader import _build_field_dict
 from engine.privacy import guard_against_duplicates
 from engine.prior.grounded import (
@@ -43,7 +50,7 @@ _NO_LABEL = ""  # sentinel: this generator has no declared label/target column
 
 
 @dataclass
-class BasicResult:
+class SimulationResult:
     """Everything about one generated table: the data plus what was checked."""
     table_name: str
     synthetic_df: pd.DataFrame
@@ -52,21 +59,35 @@ class BasicResult:
     fidelity_passed: bool
     column_reports: List[ColumnFidelity] = field(default_factory=list)
     correlation_delta: Optional[float] = None
+    categorical_association_delta: Optional[float] = None
+    categorical_worst_pair: Optional[str] = None
     n_duplicates_guarded: int = 0
     identifier_cols: List[str] = field(default_factory=list)
     seed: int = 0
 
     def summary(self) -> str:
+        cfg = AuditorConfig()
         lines = [
             f"{self.table_name}: {self.n_real_rows} real rows -> {self.n_synthetic_rows} synthetic rows",
-            f"  fidelity: {'PASS' if self.fidelity_passed else 'FAIL'}"
-            + (f"  (correlation delta {self.correlation_delta:.3f})" if self.correlation_delta is not None else ""),
-            f"  privacy: {self.n_duplicates_guarded} near-duplicate row(s) nudged away from real rows"
-            "  (no synthetic row is a verbatim copy of a real row)",
+            f"  fidelity: {'PASS' if self.fidelity_passed else 'FAIL'}",
         ]
+        if self.correlation_delta is not None:
+            ok = self.correlation_delta <= cfg.correlation_threshold
+            lines.append(
+                f"    numeric correlations   delta {self.correlation_delta:.3f}"
+                f"  (limit {cfg.correlation_threshold})  {'ok' if ok else 'TOO FAR'}")
+        if self.categorical_association_delta is not None:
+            ok = self.categorical_association_delta <= cfg.categorical_association_threshold
+            pair = f" [worst: {self.categorical_worst_pair}]" if self.categorical_worst_pair else ""
+            lines.append(
+                f"    category vs. measure   delta {self.categorical_association_delta:.3f}"
+                f"  (limit {cfg.categorical_association_threshold})  {'ok' if ok else 'TOO FAR'}{pair}")
         failed_cols = [r.col for r in self.column_reports if not r.passed]
         if failed_cols:
-            lines.append(f"  columns that failed fidelity: {failed_cols}")
+            lines.append(f"    columns off on their own distribution: {failed_cols}")
+        lines.append(
+            f"  privacy: {self.n_duplicates_guarded} row(s) landed on a real record and were moved off"
+            "  (no synthetic row copies a real one)")
         return "\n".join(lines)
 
 
@@ -75,7 +96,7 @@ def generate_table(
     n_rows: int,
     seed: int = 42,
     table_name: str = "table",
-) -> BasicResult:
+) -> SimulationResult:
     """Generate a synthetic version of ``real_df`` with ``n_rows`` rows.
 
     Every column's marginal distribution is preserved (each synthetic value
@@ -89,15 +110,16 @@ def generate_table(
     Privacy: no synthetic row can be a near-copy of a real row, by
     construction — every value is drawn from a fitted distribution, never
     from perturbing a real anchor row — plus a checked verbatim-duplicate
-    guard as a safety net. This deliberately does NOT apply REGEN's
-    δ-distance floor (engine/privacy.py): that floor is designed for a
-    sparse rare-event reference set, and applying it to a dense whole-table
-    population was tested and found to corrupt cross-column correlation —
-    its "saturated box" fallback respawns violating rows by sampling each
-    dimension independently, which erases exactly the joint structure this
-    generator exists to preserve. Verified empirically, not assumed: on a
-    2000-row two-column table, the floor turned a 0.91 real correlation into
-    -0.29 in the synthetic output.
+    guard as a safety net.
+
+    One privacy mechanism was deliberately tried and removed: a δ-distance
+    floor, which pushes every synthetic row at least some distance away from
+    every real row. It works when the real rows are sparse, but on a dense
+    table there is often nowhere legal left to put a row, and its fallback
+    for that case re-draws each column independently — destroying exactly
+    the joint structure this generator exists to preserve. Measured, not
+    assumed: on a 2000-row two-column table it turned a real correlation of
+    0.91 into -0.29 in the synthetic output.
 
     Raises ValueError if every column looks like an identifier (nothing left
     to actually generate), if real_df is empty, or if real_df has missing
@@ -140,15 +162,19 @@ def generate_table(
         _eval_column(c, real_df[c], synth[c], field_dict[c].field_type, AuditorConfig())
         for c in gen_cols
     ]
+    cfg = AuditorConfig()
     corr_delta = _correlation_delta(real_df, synth, field_dict, _NO_LABEL)
-    corr_ok = corr_delta is None or corr_delta <= AuditorConfig().correlation_threshold
-    fidelity_passed = all(r.passed for r in col_reports) and corr_ok
+    corr_ok = corr_delta is None or corr_delta <= cfg.correlation_threshold
+    cat_delta, cat_worst_pair = _categorical_association_delta(
+        real_df, synth, field_dict, _NO_LABEL, cfg)
+    cat_ok = cat_delta is None or cat_delta <= cfg.categorical_association_threshold
+    fidelity_passed = all(r.passed for r in col_reports) and corr_ok and cat_ok
 
     synth, n_dup = guard_against_duplicates(synth, real_df, field_dict, _NO_LABEL, rng)
     synth = _apply_numeric_constraints(synth, gen_cols, field_dict)
     synth = synth[all_cols]
 
-    return BasicResult(
+    return SimulationResult(
         table_name=table_name,
         synthetic_df=synth,
         n_real_rows=len(real_df),
@@ -156,6 +182,8 @@ def generate_table(
         fidelity_passed=fidelity_passed,
         column_reports=col_reports,
         correlation_delta=corr_delta,
+        categorical_association_delta=cat_delta,
+        categorical_worst_pair=cat_worst_pair,
         n_duplicates_guarded=n_dup,
         identifier_cols=identifier_cols,
         seed=seed,
@@ -166,7 +194,7 @@ def generate_tables(
     tables: Dict[str, pd.DataFrame],
     n_rows: int | Dict[str, int],
     seed: int = 42,
-) -> Dict[str, BasicResult]:
+) -> Dict[str, SimulationResult]:
     """Generate a synthetic version of each table in ``tables``.
 
     ``n_rows`` is either one row count applied to every table, or a
@@ -174,7 +202,7 @@ def generate_tables(
     derived seed (seed + index) so results are still reproducible but tables
     don't share identical latent draws.
     """
-    results: Dict[str, BasicResult] = {}
+    results: Dict[str, SimulationResult] = {}
     for i, (name, df) in enumerate(tables.items()):
         rows = n_rows[name] if isinstance(n_rows, dict) else n_rows
         results[name] = generate_table(df, rows, seed=seed + i, table_name=name)
@@ -202,12 +230,10 @@ def _generate_columns(
     fidelity failure that only a table with a non-0/1 binary column exposes.
     """
     work = real_df[gen_cols].copy()
-    binary_lo_hi: Dict[str, tuple] = {}
     for col in gen_cols:
         if field_dict[col].field_type == FieldType.BINARY:
             vals = sorted(pd.unique(real_df[col].dropna()))
-            lo, hi = (vals[0], vals[-1]) if len(vals) >= 2 else (vals[0], vals[0])
-            binary_lo_hi[col] = (lo, hi)
+            lo = vals[0]
             work[col] = (work[col] != lo).astype(np.float64)  # lo -> 0.0, hi -> 1.0
 
     X = _encode_features(work, field_dict)

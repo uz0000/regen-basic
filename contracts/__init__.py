@@ -1,5 +1,5 @@
 """
-Contracts — shared types used by basic/ (the generator), certify/ (the
+Contracts — shared types used by simulate/ (the generator), certify/ (the
 verifier), and the engine modules they reuse. No LLM clients, no networking,
 no agent framework imports.
 """

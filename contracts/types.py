@@ -1,5 +1,5 @@
 """
-Shared dataclasses for the basic generator (basic/generate.py), the engine
+Shared dataclasses for the simulator (simulate/generate.py), the engine
 modules it reuses (engine/auditor/fidelity.py, engine/ingest/loader.py,
 engine/privacy.py, engine/prior/grounded.py), and the certifier (certify/).
 """

@@ -1,10 +1,8 @@
 """
-synth — CLI for the basic generic table generator (basic/generate.py).
+synth — command-line interface to the table simulator (simulate/generate.py).
 
-Separate from `regen` (cli/main.py) on purpose: that CLI's flags are all
-rare-event/estimand concepts (--label, --rare-mode, --scenario). This one
-takes any number of tables and generates a synthetic version of each, no
-label column or declared analysis required.
+Takes any number of real tables and writes a synthetic stand-in for each,
+reporting what was checked about every one.
 
 Usage:
     synth generate table1.csv table2.csv ... --n-rows 500 --out synth-output/
@@ -31,7 +29,11 @@ def main():
 
 
 def _build_parser():
-    p = argparse.ArgumentParser(prog="synth", description="Generic synthetic table generator")
+    p = argparse.ArgumentParser(
+        prog="synth",
+        description="Simulate a table: build a synthetic stand-in for real data "
+                    "that keeps each column's distribution and how the columns "
+                    "move together.")
     p.add_argument("--version", "-V", action="version", version=f"synth {__version__}")
     sub = p.add_subparsers(dest="command")
 
@@ -49,7 +51,7 @@ def _build_parser():
 
 
 def _cmd_generate(args):
-    from basic.generate import generate_table
+    from simulate.generate import generate_table
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -84,6 +86,8 @@ def _cmd_generate(args):
                 "n_synthetic_rows": r.n_synthetic_rows,
                 "fidelity_passed": r.fidelity_passed,
                 "correlation_delta": r.correlation_delta,
+                "categorical_association_delta": r.categorical_association_delta,
+                "categorical_worst_pair": r.categorical_worst_pair,
                 "columns_failed": [c.col for c in r.column_reports if not c.passed],
                 "n_duplicates_guarded": r.n_duplicates_guarded,
                 "identifier_cols": r.identifier_cols,

@@ -1,5 +1,5 @@
 """
-Mixed-data Gaussian copula — the core sampler basic/generate.py fits on a
+Mixed-data Gaussian copula — the core sampler simulate/generate.py fits on a
 whole table and draws new rows from.
 
 Every feature column (continuous *and* discrete) is mapped to standard-normal

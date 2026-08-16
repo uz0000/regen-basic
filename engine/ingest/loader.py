@@ -1,5 +1,5 @@
 """
-Schema inference for the basic generator.
+Schema inference for the simulator.
 
 Infers each column's type (continuous / categorical / binary) and whether it
 looks like an identifier (a near-unique key that should be re-minted rather

@@ -1,20 +1,23 @@
 """
-Tests for basic/generate.py — the generic (no label, no rare-event split)
-table generator. Exercises continuous, categorical, binary, and identifier
-columns together, since the ordering bug between copula-encoding and the
-fidelity/privacy checks only shows up when a categorical column is present.
+Tests for simulate/generate.py.
+
+Every fixture deliberately mixes continuous, categorical, binary, and
+identifier columns rather than testing each in isolation: the bugs that
+actually surfaced in this code were ordering bugs between the copula
+encoding and the checks that run after it, and those only appear when more
+than one kind of column is present at once.
 """
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from basic.generate import BasicResult, generate_table, generate_tables
+from simulate.generate import SimulationResult, generate_table, generate_tables
 
 
 def _mixed_real_df(n=600, seed=0):
     """A table with continuous (correlated), categorical, binary, and an
-    identifier column — one of every kind basic/generate.py has to handle."""
+    identifier column — one of every kind simulate/generate.py has to handle."""
     rng = np.random.default_rng(seed)
     income = rng.normal(60000, 15000, n).clip(15000, None)
     # debt correlated with income so the correlation-preservation check is meaningful
@@ -115,7 +118,7 @@ def test_generate_tables_handles_multiple_tables_independently():
     results = generate_tables(tables, n_rows=100, seed=42)
     assert set(results.keys()) == {"customers", "customers_v2"}
     for name, r in results.items():
-        assert isinstance(r, BasicResult)
+        assert isinstance(r, SimulationResult)
         assert len(r.synthetic_df) == 100
         assert r.table_name == name
 
@@ -162,3 +165,75 @@ def test_missing_values_raise_loudly_not_silently():
     real.loc[0, "income"] = np.nan
     with pytest.raises(ValueError, match="missing values"):
         generate_table(real, n_rows=10)
+
+
+# ── Categorical-to-numeric association ────────────────────────────────────────
+#
+# A numeric correlation matrix cannot see "this measurement differs by that
+# category" — correlation needs two numbers, and a nominal category is not a
+# number. These cover the check that does see it, including the case where
+# the simulator genuinely cannot reproduce the relationship, which is a real
+# limitation rather than a bug to hide.
+
+def _category_effect_df(n, effect_by_category, seed=0):
+    """A table where a numeric column's mean is set by a category."""
+    rng = np.random.default_rng(seed)
+    cat = rng.choice(list(effect_by_category), size=n)
+    base = np.array([effect_by_category[c] for c in cat], dtype=float)
+    return pd.DataFrame({
+        "cat": cat,
+        "val": base + rng.normal(0, 3, n),
+        "other": rng.normal(0, 1, n),
+    })
+
+
+def test_unrelated_category_does_not_trip_the_check():
+    """No false positive: when the category genuinely explains nothing, the
+    simulator reproduces that nothing, and the gate must stay quiet."""
+    real = _category_effect_df(3000, {"alpha": 0.0, "beta": 0.0, "gamma": 0.0})
+    result = generate_table(real, n_rows=3000, seed=1)
+    assert result.categorical_association_delta is not None
+    assert result.categorical_association_delta < 0.05
+    assert result.fidelity_passed
+
+
+def test_category_effect_that_the_simulator_flattens_is_caught():
+    """The real limitation, stated as a test rather than left to be discovered:
+    the copula ranks a category's *code*, and the codes are assigned
+    alphabetically, so a relationship that is not monotonic in alphabetical
+    order cannot be represented. It must be reported, not silently passed."""
+    # alpha/beta/gamma alphabetically, but the effect runs 30/10/20 — no
+    # ordering of the labels makes that monotonic.
+    real = _category_effect_df(3000, {"alpha": 30.0, "beta": 10.0, "gamma": 20.0})
+    result = generate_table(real, n_rows=3000, seed=1)
+    assert result.categorical_association_delta > 0.10
+    assert result.fidelity_passed is False
+    assert result.categorical_worst_pair == "val by cat"
+
+
+def test_worst_pair_is_reported_not_averaged_away():
+    """One broken relationship among several intact ones must still surface.
+    Averaging would divide it down into a comfortable-looking number — the
+    same way an aggregate similarity score hides the one thing you needed."""
+    real = _category_effect_df(3000, {"alpha": 30.0, "beta": 10.0, "gamma": 20.0})
+    # Add three more numeric columns with no category relationship at all.
+    rng = np.random.default_rng(5)
+    for i in range(3):
+        real[f"noise_{i}"] = rng.normal(0, 1, len(real))
+    result = generate_table(real, n_rows=3000, seed=1)
+    # The broken pair still drives the number, undiluted by the intact ones.
+    assert result.categorical_worst_pair == "val by cat"
+    assert result.categorical_association_delta > 0.10
+    assert result.fidelity_passed is False
+
+
+def test_eta_squared_measures_group_separation():
+    """Directly pin the statistic: identical group means -> 0, fully separated
+    groups -> near 1."""
+    from engine.auditor.fidelity import _eta_squared
+    rng = np.random.default_rng(0)
+    g = pd.Series(["a"] * 500 + ["b"] * 500)
+    same = pd.Series(np.concatenate([rng.normal(0, 1, 500), rng.normal(0, 1, 500)]))
+    split = pd.Series(np.concatenate([rng.normal(0, 0.1, 500), rng.normal(50, 0.1, 500)]))
+    assert _eta_squared(g, same, 20) < 0.05
+    assert _eta_squared(g, split, 20) > 0.95

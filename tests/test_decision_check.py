@@ -15,7 +15,7 @@ import pandas as pd
 from certify.certifier import certify_dataset
 from contracts.types import EstimandSpec
 
-CSV = Path(__file__).resolve().parent.parent / "examples" / "certifier_demo" / "credit_default.csv"
+CSV = Path(__file__).resolve().parent.parent / "examples" / "decision_check" / "credit_default.csv"
 PREDICTORS = ["pay_delay_1", "utilization", "log_limit", "age"]
 
 

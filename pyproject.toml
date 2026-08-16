@@ -24,10 +24,10 @@ dev = [
 ]
 
 [project.scripts]
-synth = "cli.basic_main:main"
+synth = "cli.main:main"
 
 [tool.setuptools.packages.find]
-include = ["engine*", "contracts*", "cli*", "basic*", "certify*"]
+include = ["engine*", "contracts*", "cli*", "simulate*", "certify*"]
 exclude = ["tests*", "examples*"]
 
 [tool.pytest.ini_options]

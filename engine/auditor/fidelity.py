@@ -1,5 +1,5 @@
 """
-Fidelity checks the basic generator gates on.
+Fidelity checks the simulator gates its output on.
 
 Metrics:
   TVD (Total Variation Distance): per column, discrete distributions.
@@ -12,10 +12,18 @@ Metrics:
     and synthetic correlation matrices. This is the check that catches a
     batch with correct marginals but broken joint structure — the failure
     mode a per-column-only check would miss entirely.
+
+  Categorical association delta: correlation is only defined between numeric
+    columns, so it says nothing about whether "measurement X differs by
+    category Y" survived. That is checked separately via the correlation
+    ratio eta-squared (the share of a numeric column's variance explained by
+    a categorical column's grouping), compared real vs. synthetic. Without
+    this, a generator can flatten every category's distinctness and still
+    report a clean bill of health.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -38,6 +46,14 @@ class AuditorConfig:
     # Max mean-absolute difference between the real and synthetic correlation
     # matrices. Needs >=2 numeric columns and a few rows to estimate.
     correlation_threshold: float = 0.25
+    # Limit on the WORST (categorical, numeric) pair's change in eta-squared.
+    # eta-squared is a share of variance in [0, 1], so 0.10 means: no single
+    # "this measurement differs by that category" relationship may lose (or
+    # gain) more than a tenth of the variance it really explains.
+    categorical_association_threshold: float = 0.10
+    # Categories rarer than this many rows are pooled out of the eta-squared
+    # estimate — a group of two rows has a meaningless group mean.
+    min_category_rows: int = 20
 
 
 # ── Cross-column correlation structure ──────────────────────────────────────────
@@ -77,6 +93,80 @@ def _correlation_delta(
     if diffs.size == 0:
         return None
     return float(diffs.mean())
+
+
+# ── Categorical ↔ numeric association ─────────────────────────────────────────
+
+def _eta_squared(groups: pd.Series, values: pd.Series, min_rows: int) -> Optional[float]:
+    """Share of ``values``' variance explained by ``groups`` (correlation ratio).
+
+    0.0 means the group means are identical — knowing the category tells you
+    nothing about the measurement. 1.0 means the category determines it. This
+    is the categorical analogue of a squared correlation, and unlike a
+    correlation it needs no ordering of the categories, which matters because
+    a nominal category has none.
+    """
+    df = pd.DataFrame({"g": groups.values, "v": pd.to_numeric(values, errors="coerce").values}).dropna()
+    if len(df) < 3:
+        return None
+    counts = df["g"].value_counts()
+    keep = counts[counts >= min_rows].index
+    df = df[df["g"].isin(keep)]
+    if df["g"].nunique() < 2:
+        return None
+    total_var = float(df["v"].var(ddof=0))
+    if not np.isfinite(total_var) or total_var < 1e-12:
+        return None
+    grand = float(df["v"].mean())
+    between = sum(
+        len(sub) * (float(sub["v"].mean()) - grand) ** 2 for _, sub in df.groupby("g")
+    ) / len(df)
+    return float(np.clip(between / total_var, 0.0, 1.0))
+
+
+def _categorical_association_delta(
+    reference_df: pd.DataFrame,
+    synthetic_df: pd.DataFrame,
+    field_dict: FieldDict,
+    label_col: str,
+    config: "AuditorConfig",
+) -> Tuple[Optional[float], Optional[str]]:
+    """Worst |eta^2_real - eta^2_synth| over every (categorical, numeric) pair,
+    with the name of the pair that scored it. ``(None, None)`` when there is
+    no such pair to compare.
+
+    This catches the failure a numeric correlation matrix structurally cannot
+    see: every category present in the right proportion, every numeric column
+    with the right distribution, and yet the categories no longer differ from
+    each other the way they really do.
+
+    Reports the *worst* pair rather than the average deliberately. Averaging
+    is how a real problem disappears: one badly broken relationship among ten
+    intact ones divides down to a comfortable-looking number, and the one
+    that matters is exactly the one you needed told about.
+    """
+    cat_cols = [c for c in reference_df.columns
+                if c in synthetic_df.columns and c in field_dict and c != label_col
+                and field_dict[c].field_type == FieldType.CATEGORICAL]
+    num_cols = [c for c in reference_df.columns
+                if c in synthetic_df.columns and c in field_dict and c != label_col
+                and field_dict[c].field_type in (FieldType.CONTINUOUS, FieldType.BINARY)]
+    if not cat_cols or not num_cols:
+        return None, None
+
+    worst, worst_pair = None, None
+    for cat in cat_cols:
+        for num in num_cols:
+            er = _eta_squared(reference_df[cat], reference_df[num], config.min_category_rows)
+            es = _eta_squared(synthetic_df[cat], synthetic_df[num], config.min_category_rows)
+            if er is None or es is None:
+                continue
+            d = abs(er - es)
+            if worst is None or d > worst:
+                worst, worst_pair = d, f"{num} by {cat}"
+    if worst is None:
+        return None, None
+    return float(worst), worst_pair
 
 
 # ── Per-column evaluation ─────────────────────────────────────────────────────

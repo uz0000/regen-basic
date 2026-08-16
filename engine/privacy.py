@@ -1,19 +1,20 @@
 """
 Privacy — the verbatim-duplicate guard.
 
-The basic generator never anchors a synthetic row on a real one (every value
-comes from a fitted copula, sampled fresh), so near-copies are already
-measure-zero by construction. This guard is the checked safety net: it finds
-any synthetic row that happens to exactly reproduce a real row's full
-attribute set and nudges it away.
+The simulator never anchors a synthetic row on a real one (every value comes
+from a fitted copula, sampled fresh), so near-copies are already measure-zero
+by construction. This guard is the checked safety net: it finds any synthetic
+row that happens to exactly reproduce a real row's full attribute set and
+nudges it away.
 
-Deliberately does NOT include the δ-distance floor some REGEN generators use:
-that floor is designed for a sparse rare-event reference set, and applying it
-to a dense whole-table population was tested and found to corrupt cross-
-column correlation (its "saturated box" fallback respawns violating rows by
-sampling each dimension independently). See basic/generate.py's docstring for
-the measurement. This is not Differential Privacy — it bounds record-level
-near-copy re-identification, not aggregate or membership-inference attacks.
+Deliberately does NOT include a δ-distance floor — the stronger mechanism that
+pushes every synthetic row a fixed distance clear of every real row. It was
+tried and measured: on a dense table there is frequently nowhere legal left to
+place a row, and the fallback for that case re-draws each column
+independently, destroying the joint structure the simulator exists to
+preserve. See simulate/generate.py's docstring for the numbers. What remains
+is not Differential Privacy — it bounds record-level near-copy
+re-identification, not aggregate or membership-inference attacks.
 
 Pure Python (numpy + scipy.spatial.cKDTree). No model, no network.
 """
