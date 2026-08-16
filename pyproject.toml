@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "regen-financial"
+version = "0.1.0"
+description = "Synthetic tabular data generation and estimand certification for cross-sectional financial risk/scoring data (credit, fraud, underwriting)"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Uzoma Nwaokoro"},
+]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy==1.26.4",
+    "pandas==2.1.4",
+    "scipy==1.11.4",
+    "scikit-learn==1.2.2",
+    "GPy==1.13.2",
+    "matplotlib==3.8.0",
+    "pyarrow==14.0.2",
+    "PyYAML==6.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.scripts]
+regen = "cli.main:main"
+
+[tool.setuptools.packages.find]
+include = ["engine*", "contracts*", "cli*", "regen*"]
+exclude = ["tests*", "examples*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore:Assigning the 'data' attribute is an inherently unsafe operation:DeprecationWarning",
+]

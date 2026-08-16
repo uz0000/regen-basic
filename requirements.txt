@@ -1,0 +1,19 @@
+# Core engine dependencies (deterministic — no LLM, no external auth).
+# Pinned: determinism/reproducibility claims (see regen/audit_bundle.py,
+# engine/manifest.py) hold within a fixed dependency set, not across sklearn
+# major versions — numpy 2.x / sklearn 1.9 shift GMM/GBM outputs enough to
+# flip borderline estimand-certification results. Pin, don't float.
+numpy==1.26.4
+pandas==2.1.4
+scipy==1.11.4
+scikit-learn==1.2.2
+GPy==1.13.2
+matplotlib==3.8.0          # GPy runtime dependency (plotting module on import)
+pyarrow==14.0.2             # Parquet I/O
+PyYAML==6.0.3                # ScenarioSpec YAML round-trip
+
+# Dev / test
+pytest
+
+# Demo-only (examples/certifier_demo/run_demo.py compares against SMOTE)
+imbalanced-learn==0.11.0

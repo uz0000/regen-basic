@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.DS_Store
+
+# Demo run artifacts
+examples/_run/
+examples/transactions.csv
+examples/certifier_demo/certificates.json
+
+# Campaign output
+regen-output/
+
+# Python egg info
+*.egg-info/
+
+# Local model tokens / secrets
+.env
