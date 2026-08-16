@@ -65,7 +65,7 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="regen",
         description="REGEN — statistically grounded synthetic data for rare-event detection.",
     )
-    p.add_argument("--version", "-V", action="version", version=f"regen-synth {__version__}",
+    p.add_argument("--version", "-V", action="version", version=f"regen-synthetic {__version__}",
                     help="Show version and exit")
     p.add_argument("--verbose", "-v", action="store_true",
                     help="Verbose output (info-level logging)")

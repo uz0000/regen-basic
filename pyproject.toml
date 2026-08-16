@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "regen-financial"
+name = "regen-synthetic"
 version = "0.1.0"
-description = "Synthetic tabular data generation and estimand certification for cross-sectional financial risk/scoring data (credit, fraud, underwriting)"
+description = "Synthetic tabular data generation: a basic generic table generator, plus (advanced) rare-event generation and estimand certification for financial risk/scoring data"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -30,9 +30,10 @@ dev = [
 
 [project.scripts]
 regen = "cli.main:main"
+synth = "cli.basic_main:main"
 
 [tool.setuptools.packages.find]
-include = ["engine*", "contracts*", "cli*", "regen*"]
+include = ["engine*", "contracts*", "cli*", "regen*", "basic*"]
 exclude = ["tests*", "examples*"]
 
 [tool.pytest.ini_options]

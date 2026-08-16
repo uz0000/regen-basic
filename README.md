@@ -1,20 +1,82 @@
-# regen-financial
+# regen-synthetic
 
-**Synthetic tabular data generation + certification for cross-sectional financial
-risk and scoring data — credit, fraud, underwriting.**
+**Synthetic tabular data generation.** Two layers, in order of how basic they are:
 
-Synthetic data can pass every fidelity and prediction check while silently
-breaking the conclusion you'd draw from it. A credit or fraud model *is* a set of
-regression coefficients; data that "looks real" but shifts those coefficients is
-worse than useless. This repo ships two things: a generator built for the rare,
-imbalanced events financial data is full of, and a certifier that tells you —
-per coefficient — whether a declared analysis survives on whatever synthetic
-data you actually used.
+1. **A basic generic table generator** (`basic/`, the `synth` CLI) — give it
+   any table (or several), get back a synthetic version that preserves each
+   column's distribution *and* the relationships between columns. No label
+   column, no declared analysis, no financial framing required.
+2. **Advanced: rare-event generation + estimand certification for financial
+   risk/scoring data** (`engine/`, `regen/`, the `regen` CLI) — built for
+   credit/fraud/underwriting specifically, including a certifier that checks
+   whether a *declared conclusion* (a regression coefficient) survives.
 
-Deterministic and recomputable throughout — no LLM in the value or verification
-path. Single-table, cross-sectional tabular only (see **Scope**, below).
+Start with the basic generator below unless you specifically need the
+financial-specific machinery — the advanced layer solves a narrower problem
+(rare-event imbalance, a declared coefficient) that most table-generation
+needs don't actually have.
+
+Deterministic throughout — no LLM in the value or verification path.
+Single-table only (see **Scope**, below).
 
 ---
+
+## The basic generator
+
+```bash
+synth generate table1.csv table2.csv --n-rows 500 --out synth-output/
+```
+
+or from Python:
+
+```python
+from basic.generate import generate_table
+result = generate_table(real_df, n_rows=500, seed=42)
+result.synthetic_df       # the generated table
+result.fidelity_passed    # did marginals + cross-column correlation come out right?
+result.n_duplicates_guarded  # near-real-row copies caught and nudged away
+```
+
+What it does: infers each column's type (continuous / categorical / binary /
+identifier), fits a joint Gaussian copula over the whole table — continuous
+and categorical columns together, sharing one latent correlation — and
+samples new rows from it. Identifier columns (near-unique keys) are detected
+and re-minted as fresh values rather than sampled, since a copula over a
+near-unique column would just reproduce noise. Every value is drawn from a
+fitted distribution, never from perturbing a real row, and a duplicate guard
+checks no synthetic row ends up a verbatim copy of a real one anyway.
+
+This isn't a from-scratch sampler: the copula core and the fidelity/duplicate
+checks are the same functions the advanced (financial) engine below uses
+internally, applied to the whole table instead of a rare/normal split —
+reusing code that already had its edge cases found and fixed, rather than
+rediscovering them. One of those edge cases got rediscovered anyway during
+testing: a binary column whose two real values weren't `{0, 1}` (e.g. `{1, 2}`)
+collapsed to a single constant value in the synthetic output, because the
+frequency-table code assumed 0/1-coded input. Fixed in `basic/generate.py`
+by remapping binary columns to `{0, 1}` before encoding — worth knowing about
+if a generated binary column ever looks flat.
+
+**What it deliberately does *not* do**: apply the advanced engine's
+δ-distance privacy floor. That floor is designed for a sparse rare-event
+reference set; applying it to a dense whole-table population was tested and
+found to *corrupt* the cross-column correlation this generator exists to
+preserve (its "saturated box" fallback respawns rows by sampling each
+dimension independently — measured turning a real 0.91 correlation into
+-0.29 in the synthetic output). The duplicate guard is the privacy mechanism
+here; see the docstring in `basic/generate.py` for the full account.
+
+**Scope (v1):** no missing values (fails loudly, doesn't silently corrupt the
+fit — impute or drop nulls first), single table only.
+
+---
+
+## Advanced: financial risk/scoring data
+
+Everything below is the narrower, financial-specific layer: rare-event
+generation and a certifier for whether a *declared* regression/logit
+coefficient survives. Skip this section unless that's specifically what you
+need.
 
 ## What "preserves" means here — read this before the rest
 
