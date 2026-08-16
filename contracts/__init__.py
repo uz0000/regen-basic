@@ -1,12 +1,14 @@
 """
-Contracts — shared types used by basic/ and the engine modules it reuses.
-No LLM clients, no networking, no agent framework imports.
+Contracts — shared types used by basic/ (the generator), certify/ (the
+verifier), and the engine modules they reuse. No LLM clients, no networking,
+no agent framework imports.
 """
 
-from .types import ColumnFidelity, FieldDict, FieldMeta, FieldType
+from .types import ColumnFidelity, EstimandSpec, FieldDict, FieldMeta, FieldType
 
 __all__ = [
     "ColumnFidelity",
+    "EstimandSpec",
     "FieldDict",
     "FieldMeta",
     "FieldType",

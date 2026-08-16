@@ -27,7 +27,7 @@ dev = [
 synth = "cli.basic_main:main"
 
 [tool.setuptools.packages.find]
-include = ["engine*", "contracts*", "cli*", "basic*"]
+include = ["engine*", "contracts*", "cli*", "basic*", "certify*"]
 exclude = ["tests*", "examples*"]
 
 [tool.pytest.ini_options]

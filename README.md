@@ -18,6 +18,12 @@ result.n_duplicates_guarded  # near-real-row copies caught and nudged away
 
 Deterministic given a seed. No LLM, no network.
 
+Also ships a **certifier** (`certify/`) — a separate, generator-agnostic
+check for a sharper question than "does this look real": if someone runs a
+real statistical analysis on this synthetic data, do they get the real
+answer? See **The certifier**, below — including the honest result of
+running it against this repo's own generator.
+
 ---
 
 ## What it does
@@ -50,6 +56,57 @@ built on their relationship (a ratio, a model, a join) will be misleading
 even though every individual column "looks right." This is the one check
 worth understanding even if you skip everything else: **marginals matching
 is not the same as the data being structurally right.**
+
+## The certifier — does it actually hold up?
+
+The correlation check above answers "does the synthetic data look
+structurally right." It doesn't answer a sharper question: if someone runs
+a real regression on this synthetic data, do they get the real answer? A
+dataset can pass every fidelity and correlation check and still silently
+shift the one coefficient a downstream model or decision depends on.
+
+`certify/` answers that question directly, for any synthetic data —
+generator-agnostic, doesn't ask who made it:
+
+```python
+from certify.certifier import certify_dataset
+from contracts.types import EstimandSpec
+
+estimand = EstimandSpec(outcome="default", predictors=["pay_delay_1", "utilization"], family="logit")
+cert = certify_dataset(real_df, synthetic_df, estimand)
+cert["certified"]  # True iff every declared coefficient is preserved
+```
+
+**Run the demo** (`python examples/certifier_demo/run_demo.py`) — real UCI
+credit-default data, one logistic regression, three sources:
+
+```
+source                             certified    pay_delay_1   utilization     log_limit           age
+-----------------------------------------------------------------------------------------------------
+bootstrap   (positive control)     CERTIFIED   +0.714 ✓  -0.367 ✓  -0.329 ✓  +0.010 ✓
+independent (negative control)     refused     -0.017 ✗  -0.031 ✗  +0.006 ✗  +0.001 ✗
+generator   (this repo's output)   refused     +0.422 ✗  -0.224 ✗  -0.208 ✗  +0.009 ✓
+```
+
+The positive control (a plain bootstrap of the real data) certifies, and the
+negative control (this generator's output with every column independently
+shuffled — same marginals, correlation deliberately destroyed) is refused
+across the board. That's the certifier working correctly: it isn't a rubber
+stamp, and it isn't broken.
+
+**The generator's own output is refused too — on 3 of 4 coefficients.** This
+is the honest result, not the one that makes the best headline. Preserving
+marginals and cross-column correlation (what `basic/generate.py` checks)
+turned out not to be enough to preserve this particular downstream
+regression. That's a real limitation of a joint-Gaussian-copula approach,
+not a bug in either the generator or the certifier — a copula fits a
+specific (Gaussian-latent) shape to the joint distribution, and a logistic
+regression's coefficients can be sensitive to structure a Gaussian copula
+doesn't capture. Fixing it would mean a different generation strategy tailored to preserving
+a *declared* estimand specifically (modeling the predictor joint more
+richly, and the outcome from a fitted conditional model rather than a
+shared latent correlation) — a different, narrower tool than a basic,
+generic generator, and out of scope here.
 
 ## What it's built from
 
