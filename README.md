@@ -207,6 +207,48 @@ different tool than a general-purpose simulator, and isn't in this repo.
 depends on a specific relationship in it, verify that relationship
 explicitly. Do not infer it from the fact that the data looks right.
 
+## How it compares to other tools
+
+Full numbers and method: [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md).
+Measured against SDV — the most widely used synthetic-tabular library —
+using both its Gaussian copula and CTGAN, plus the two controls.
+
+On the real 30k-row table with a declared analysis:
+
+| generator | correlation Δ | **conclusion kept** | time |
+|---|---|---|---|
+| bootstrap *(control)* | 0.006 | **4/4** | — |
+| independent *(control)* | 0.177 | **0/4** | — |
+| **regen-synthetic** | **0.037** | **1/4** | **0.4s** |
+| sdv-copula | 0.064 | **1/4** | 4.1s |
+| sdv-ctgan | 0.091 | **0/4** | 91s |
+
+Three things this says, none of them flattering by default:
+
+**No practical generator preserves the conclusion** — the best result from
+any of them is one coefficient out of four, and every one of them passes the
+ordinary quality checks while doing it. The gap between "looks right" and
+"is right" is not a quirk of this implementation; it reproduces across the
+field.
+
+**This repo is competitive but not special.** It ties the industry standard
+on the conclusion, edges it on correlation structure, and runs ten times
+faster. It is the same family of method, and it inherits the same
+weaknesses — including the categorical one, which SDV's copula has for
+exactly the same structural reason.
+
+**CTGAN genuinely beats both copulas on categorical structure** once given
+enough training (0.370 against 0.575, on the second table in the results),
+because it doesn't rank categories. It still fails the threshold, and costs
+~2,500× the time. Worth knowing rather than hiding: the approach used here
+is not the best available at that particular thing.
+
+What isn't available elsewhere is the middle column. SDV ships no verdict on
+whether a declared analysis survived — measuring that requires being told
+which analysis matters. That is the contribution: not a better generator, but
+refusing to report success without checking the thing that decides whether
+the data was any use.
+
 ## Reading the code
 
 ```
@@ -218,6 +260,7 @@ engine/auditor/          the fidelity checks (per-column, correlation, category)
 engine/privacy.py        the duplicate guard
 engine/ingest/loader.py  column-kind and identifier inference
 examples/decision_check/ the demo above
+examples/comparison/     the head-to-head against SDV and CTGAN
 ```
 
 The regression fits in `certify/estimand.py` are written directly against
