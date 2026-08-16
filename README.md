@@ -2,9 +2,6 @@
 
 [![tests](https://github.com/uz0000/regen-basic/actions/workflows/tests.yml/badge.svg)](https://github.com/uz0000/regen-basic/actions/workflows/tests.yml)
 
-> This work is complete. The result is what it set out to measure; the code is
-> the evidence, kept runnable so the claim can be checked.
-
 **If you simulate data instead of using the real thing, and then make a
 decision from it — do you reach the same conclusion the truth would have
 given you?**
