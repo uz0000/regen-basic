@@ -41,10 +41,24 @@ jobs:
 
       # The examples are part of what the README promises; a crash in one is a
       # broken promise even when every unit test passes.
-      - name: Example — generate the demo table and simulate it
+      #
+      # The sample table is *expected* to fail its checks — it contains a
+      # category-to-measurement relationship the simulator cannot represent,
+      # and the README shows that failure rather than hiding it. So this
+      # asserts exit 1 specifically, which also pins the exit-code contract
+      # a script depends on: 1 means "ran fine, result is bad", not "crashed".
+      - name: Example — the demo table fails its checks, and says so with exit 1
         run: |
           python examples/make_sample_data.py
+          set +e
           synth generate examples/readings.csv --n-rows 500 --out /tmp/ci-out
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "expected exit 1 (checks failed) from the sample table, got $code"
+            exit 1
+          fi
+          synth generate examples/readings.csv --n-rows 500 --out /tmp/ci-out --allow-fail
 
       - name: Example — the decision check end to end
         run: python examples/decision_check/run_demo.py

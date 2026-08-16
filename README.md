@@ -105,6 +105,26 @@ alphabetically — so the relationship cannot be represented, only detected
 and reported. If your table has meaningful differences between categories,
 expect this check to fire, and treat it as real.
 
+### Exit codes
+
+A failed check is not a crash: the tool ran correctly and is telling you the
+result is bad. A pipeline watching only for crashes would sail straight past
+that, so the two are separate codes.
+
+| code | meaning |
+|---|---|
+| `0` | every table simulated and passed every check |
+| `1` | at least one table **failed** a check — the data was still written, so you can inspect it |
+| `2` | could not run (missing file, or input the simulator refuses); nothing written |
+
+```bash
+synth generate mytable.csv --out synth-output/ || echo "don't trust that output"
+```
+
+Pass `--allow-fail` to get exit `0` regardless when you want the data
+anyway. Note that `1` still writes the output — a verdict of "this isn't
+faithful" is more useful with the evidence attached than without it.
+
 **On privacy**: no synthetic row is built by perturbing a real row — every
 value is drawn from a fitted distribution — so near-copies are already rare
 by construction, and a duplicate guard checks for them anyway. This is *not*
@@ -230,10 +250,14 @@ dependency on a solver whose behavior could drift between versions.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
-pytest tests/ -q                        # 27 tests
+pytest tests/ -q                        # 35 tests
 python examples/make_sample_data.py     # a demo table to try the CLI on
 synth generate examples/readings.csv --n-rows 500 --out synth-output/
 ```
+
+That last command exits `1` on purpose — the demo table contains a
+relationship the simulator can't reproduce, and the checks say so. See
+**Exit codes** above.
 
 Dependencies are pinned (numpy, pandas, scipy) as reproducibility discipline:
 identical seeds only guarantee identical output within a fixed dependency
