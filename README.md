@@ -93,10 +93,12 @@ pip install -e .
 pytest tests/ -q
 ```
 
-Three pinned dependencies: numpy, pandas, scipy. Pinned because determinism
-holds within a fixed dependency set, not across major versions — a
-newer numpy/scikit-learn was previously found (on an earlier version of this
-codebase) to shift results enough to flip a borderline test.
+Three pinned dependencies: numpy, pandas, scipy. Pinned as a general
+reproducibility discipline — determinism claims only hold within a fixed
+dependency set, not across major versions. Not independently verified for
+this code specifically: the one confirmed case of a version bump flipping a
+result was in a different (since-removed) module of the source project that
+depended on scikit-learn, which this codebase no longer uses at all.
 
 ## License
 
