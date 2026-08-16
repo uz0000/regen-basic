@@ -1,5 +1,7 @@
 # regen-synthetic
 
+[![tests](https://github.com/uz0000/regen-synthetic/actions/workflows/tests.yml/badge.svg)](https://github.com/uz0000/regen-synthetic/actions/workflows/tests.yml)
+
 **If you simulate data instead of using the real thing, and then make a
 decision from it — do you reach the same conclusion the truth would have
 given you?**
@@ -235,9 +237,17 @@ synth generate examples/readings.csv --n-rows 500 --out synth-output/
 
 Dependencies are pinned (numpy, pandas, scipy) as reproducibility discipline:
 identical seeds only guarantee identical output within a fixed dependency
-set. Not independently verified for this code — the one confirmed case of a
-version bump changing a result was in an earlier, since-removed module that
-used scikit-learn, which this codebase no longer depends on at all.
+set. That is not just asserted here — CI runs the suite and both examples on
+Linux across Python 3.10, 3.11 and 3.12, none of which is the machine this
+was written on. It matters more than it might sound: the tests assert numeric
+thresholds on seeded draws, and those are exactly the assertions that can
+drift with a different platform or numerical backend. They currently don't.
+
+Worth knowing what that does *not* cover: only these pinned versions are
+tested, so the pins are known-good rather than known-necessary. The one
+confirmed case of a version bump changing a result was in an earlier,
+since-removed module that used scikit-learn, which this codebase no longer
+depends on at all.
 
 ## License
 
