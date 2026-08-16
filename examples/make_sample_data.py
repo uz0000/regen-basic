@@ -1,18 +1,14 @@
 """
-Generate a synthetic fraud-like transaction dataset for the REGEN demo.
-
-This is *demo input* — a stand-in for a real tabular dataset. It is NOT
-REGEN output; it exists only so the loop has something to ingest. It has a
-clear rare class (fraud) that sits in a distinct region of feature space,
-so the Auditor's coverage metric and the Examiner's lift number are
-meaningful.
+Generate a demo table — a stand-in for a real tabular dataset — used as
+example input for `synth generate` and the test suite. Not synthetic
+generator output itself.
 
 Columns:
-  amount        continuous   — transaction amount (fraud skews high)
-  n_prior_txns  continuous   — account history depth (fraud skews low)
-  hour          continuous   — hour of day (fraud skews to odd hours)
-  merchant_risk continuous   — merchant risk score (fraud skews high)
-  is_fraud      binary       — label (1 = fraud, ~3% of rows)
+  amount        continuous
+  n_prior_txns  continuous
+  hour          continuous
+  merchant_risk continuous
+  is_fraud      binary (~3% of rows) — included to exercise a binary column
 """
 
 import argparse

@@ -1,14 +1,10 @@
 """
-REGEN Deterministic Engine
+Engine — the pieces basic/generate.py composes into a table generator.
 
 Pure Python. No LLM client, no agent framework, no network library.
-Enforced by tests/test_boundary.py.
 
-Entry points:
-  engine.prior    — grounded-sampling base generator + Gaussian density scorer
-  engine.amplifier — TailCorrector tail correction
-  engine.scout    — Scout targeting acquisition (targeting math)
-  engine.auditor  — fidelity gate (hard reject on failure)
-  engine.examiner — downstream detector + lift measurement
-  engine.manifest — BatchManifest construction helpers
+  engine.ingest    — column-type/identifier inference (schema, no label needed)
+  engine.prior     — the mixed-data Gaussian copula sampler
+  engine.auditor   — fidelity checks (per-column + cross-column correlation)
+  engine.privacy   — the verbatim-duplicate guard
 """

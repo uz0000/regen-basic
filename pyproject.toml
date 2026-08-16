@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "regen-synthetic"
 version = "0.1.0"
-description = "Synthetic tabular data generation: a basic generic table generator, plus (advanced) rare-event generation and estimand certification for financial risk/scoring data"
+description = "Basic generic synthetic table generator: any table, no label column, no declared analysis"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -16,11 +16,6 @@ dependencies = [
     "numpy==1.26.4",
     "pandas==2.1.4",
     "scipy==1.11.4",
-    "scikit-learn==1.2.2",
-    "GPy==1.13.2",
-    "matplotlib==3.8.0",
-    "pyarrow==14.0.2",
-    "PyYAML==6.0.3",
 ]
 
 [project.optional-dependencies]
@@ -29,15 +24,11 @@ dev = [
 ]
 
 [project.scripts]
-regen = "cli.main:main"
 synth = "cli.basic_main:main"
 
 [tool.setuptools.packages.find]
-include = ["engine*", "contracts*", "cli*", "regen*", "basic*"]
+include = ["engine*", "contracts*", "cli*", "basic*"]
 exclude = ["tests*", "examples*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-filterwarnings = [
-    "ignore:Assigning the 'data' attribute is an inherently unsafe operation:DeprecationWarning",
-]
