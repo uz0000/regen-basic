@@ -16,6 +16,27 @@ path. Single-table, cross-sectional tabular only (see **Scope**, below).
 
 ---
 
+## What "preserves" means here — read this before the rest
+
+**"Preserving the relationships in the real data" is not REGEN's claim, and it's
+not enough — that's the entire reason this project exists.** The Gaussian copula
+in the demo below *is* a preserve-the-correlations method — marginals plus a
+covariance matrix, which is what "relationships" usually means — and it still
+gets refused, because a correlation matrix looking right in aggregate doesn't
+mean the one coefficient a credit model actually depends on survives. General
+fidelity and specific analytical utility turned out to be different things.
+
+**What REGEN generates and certifies instead is narrower and verified, not
+broad and assumed: a specific, declared conclusion — one regression or logit
+coefficient you name up front — either provably survives in the synthetic data,
+or the certifier tells you it doesn't.** It makes no claim about relationships
+you didn't declare. That's a deliberately smaller promise than "this data is
+generally useful," and it's smaller on purpose: a verified narrow claim is worth
+more than an assumed broad one, especially for data a financial decision gets
+built on.
+
+---
+
 ## The certifier
 
 ```python
