@@ -4,6 +4,12 @@ Run 2026-08-16. Every number below was produced by the two scripts in this
 directory and can be reproduced with them; nothing is quoted from a paper or
 a vendor page.
 
+**Independently re-run 2026-08-16** against a freshly created SDV environment
+(SDV 1.38.0) and a freshly created project virtualenv. Every figure in both
+tables reproduced exactly — same correlation deltas, same category deltas, same
+conclusion-kept counts. That is the claim the pinning discipline makes, checked
+rather than assumed.
+
 Each generator ran in whatever environment it is supported in — SDV needs
 newer numpy than this project pins, so it gets its own — and then **one
 scorer graded every output under one dependency set.** That matters: if the

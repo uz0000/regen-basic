@@ -94,7 +94,7 @@ def gen_ours(real: pd.DataFrame, n_rows: int, seed: int) -> pd.DataFrame:
 LOCAL_GENERATORS = {
     "bootstrap (control)": gen_bootstrap,
     "independent (control)": gen_independent,
-    "regen-synthetic": gen_ours,
+    "regen-basic": gen_ours,
 }
 
 
