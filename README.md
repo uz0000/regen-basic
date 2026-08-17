@@ -27,6 +27,17 @@ well on output from any other tool.
 
 Deterministic given a seed. No LLM, no network. Three dependencies.
 
+**Relationship to [`regen-synth`](https://github.com/uz0000/regen-synth).** That
+repo is the larger system the same question came out of: rare-event
+amplification, a privacy floor, an audit bundle, and a certifier that extends to
+a second generator built specifically to preserve a declared analysis. This repo
+is the compact version — the simulator and the check, three dependencies, no
+model call anywhere.
+
+Install them into **separate environments**. Both claim the top-level package
+names `engine`, `contracts` and `cli`, so a shared environment resolves those
+imports to whichever was installed last and the CLIs shadow each other.
+
 ---
 
 ## Simulating a table
