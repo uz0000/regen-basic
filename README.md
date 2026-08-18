@@ -67,24 +67,39 @@ each column then shuffled on its own, so the distributions are *identical*
 and only the joint structure is destroyed; it diverges on everything, which
 is precisely the failure the correlation check was built to catch.
 
-**And the simulator's own output diverges too — on three of four
-coefficients.** Its own fidelity check passed: distributions matched,
-correlation delta 0.037, comfortably inside threshold. Anyone trusting that
-verdict would have shipped it. The independent check says a decision made
-from that data lands somewhere different from the truth — `pay_delay_1`
-comes back at +0.42 against a real +0.71, an effect understated by 41%.
+**And the simulator's own output diverges too, on three of four
+coefficients.** Its own fidelity check passed: every column's distribution
+matched, and the relationships between columns shifted by 0.037, comfortably
+inside the limit. Anyone trusting that verdict would have shipped it. The
+independent check says a decision made from that data lands somewhere different
+from the truth. `pay_delay_1` comes back at +0.42 against a real +0.71, an effect
+understated by 41%.
 
 This is the honest result rather than the flattering one, and it is the most
-useful thing in the repo. It is not a bug in either half; it is a real
-property of this class of generator. A copula reproduces a particular
-*shape* of dependence, and a logistic regression's coefficients depend on
-structure that shape doesn't fully capture. Matching distributions and
-matching correlations is genuinely not sufficient for matching conclusions.
+useful thing in the repo. It is not a bug in either half. It is a real property
+of this class of generator, and the reason is measurable.
 
-The narrower generator that *would* close this gap — one that models the
-predictors more richly and draws the outcome from a fitted conditional model,
-built against a declared analysis rather than general resemblance — is a
-different tool than a general-purpose simulator, and isn't in this repo. It was
+The strongest warning sign in this data does not behave like a trend. Among
+accounts not behind on payments 12.8% default, one period behind 33.9%, two
+periods behind 69.1%. Risk climbs and then jumps. A copula ties columns together
+with a single number for how strongly they move together, which can describe a
+climb and cannot describe a jump, so it renders the jump as a gentle slope. Its
+correlation with the outcome comes out at +0.21 against a real +0.33, and the
+coefficient shrinks with it.
+
+Matching distributions and matching correlations is genuinely not sufficient for
+matching conclusions.
+
+Every claim in the two paragraphs above is measured rather than argued:
+[`examples/decision_check/MECHANISM.md`](examples/decision_check/MECHANISM.md)
+(`python examples/decision_check/mechanism_check.py`) states each one, measures
+it, and reports whether it holds.
+
+The narrower generator that *would* close this gap, one that describes how the
+predictor rows are arranged in more detail and then decides each row's outcome
+from a model of how the real outcome depends on where a row sits, built against a
+declared analysis rather than general resemblance, is a different tool than a
+general-purpose simulator and isn't in this repo. It was
 built in [`regen-synth`](https://github.com/uz0000/regen-synth): it recovers the
 coefficient every method here breaks, and still certifies the full analysis on
 only 37% of seeds. A partial fix, with the honest number reported as one, in that
@@ -244,10 +259,10 @@ makes no claim about what can be inferred in aggregate.
 
 ### Checking the conclusion
 
-Fidelity checks answer "does this look right." They cannot answer "would
-someone acting on this be right," because that depends on a specific
-analysis, and no generator knows which analysis you have in mind. So you
-declare it:
+Fidelity checks, meaning the checks that ask whether the table looks like the
+real one, answer "does this look right." They cannot answer "would someone acting
+on this be right," because that depends on a specific analysis, and no generator
+knows which analysis you have in mind. So you declare it:
 
 ```python
 from certify.certifier import certify_dataset
@@ -347,6 +362,7 @@ depends on at all.
 |---|---|
 | What was found | [the finding](#the-finding-this-repos-own-simulator-fails-its-own-question), above |
 | The per-coefficient table | [`examples/decision_check/RESULTS.md`](examples/decision_check/RESULTS.md) |
+| Whether the explanation is true | [`examples/decision_check/MECHANISM.md`](examples/decision_check/MECHANISM.md) |
 | How it compares to SDV and CTGAN | [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md) |
 | Claims that were revised, and why | [`CORRECTIONS.md`](CORRECTIONS.md) |
 | What the code does, file by file | [Reading the code](#reading-the-code), above |
