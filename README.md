@@ -40,7 +40,107 @@ imports to whichever was installed last and the CLIs shadow each other.
 
 ---
 
-## Simulating a table
+---
+
+## The finding: this repo's own simulator fails its own question
+
+`python examples/decision_check/run_demo.py` — a real public dataset of
+30,000 people, one regression, three sources. The subject matter is
+incidental; substitute any table where someone fits a model and acts on the
+coefficients.
+
+Full per-coefficient table:
+[`examples/decision_check/RESULTS.md`](examples/decision_check/RESULTS.md),
+written by the script that produced it.
+
+| source | `pay_delay_1` | verdict |
+|---|---|---|
+| **truth** (the real data) | **+0.714** | — |
+| bootstrap *(positive control)* | +0.714 | matches |
+| independent *(negative control)* | −0.017 | diverges |
+| **simulator** *(this repo's output)* | **+0.422** | **diverges** |
+
+The two controls confirm the checker works. A plain resample of the real
+data reproduces the conclusion, as it must — if that failed, the checker
+would be broken. The negative control is the simulator's own output with
+each column then shuffled on its own, so the distributions are *identical*
+and only the joint structure is destroyed; it diverges on everything, which
+is precisely the failure the correlation check was built to catch.
+
+**And the simulator's own output diverges too — on three of four
+coefficients.** Its own fidelity check passed: distributions matched,
+correlation delta 0.037, comfortably inside threshold. Anyone trusting that
+verdict would have shipped it. The independent check says a decision made
+from that data lands somewhere different from the truth — `pay_delay_1`
+comes back at +0.42 against a real +0.71, an effect understated by 41%.
+
+This is the honest result rather than the flattering one, and it is the most
+useful thing in the repo. It is not a bug in either half; it is a real
+property of this class of generator. A copula reproduces a particular
+*shape* of dependence, and a logistic regression's coefficients depend on
+structure that shape doesn't fully capture. Matching distributions and
+matching correlations is genuinely not sufficient for matching conclusions.
+
+The narrower generator that *would* close this gap — one that models the
+predictors more richly and draws the outcome from a fitted conditional model,
+built against a declared analysis rather than general resemblance — is a
+different tool than a general-purpose simulator, and isn't in this repo. It was
+built in [`regen-synth`](https://github.com/uz0000/regen-synth): it recovers the
+coefficient every method here breaks, and still certifies the full analysis on
+only 37% of seeds. A partial fix, with the honest number reported as one, in that
+repo's [`FINDINGS.md`](https://github.com/uz0000/regen-synth/blob/main/FINDINGS.md).
+
+**What to take from it**: if you simulate data and something downstream
+depends on a specific relationship in it, verify that relationship
+explicitly. Do not infer it from the fact that the data looks right.
+
+## How it compares to other tools
+
+Full numbers and method: [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md).
+Measured against SDV — the most widely used synthetic-tabular library —
+using both its Gaussian copula and CTGAN, plus the two controls.
+
+On the real 30k-row table with a declared analysis:
+
+| generator | correlation Δ | **conclusion kept** | time |
+|---|---|---|---|
+| bootstrap *(control)* | 0.006 | **4/4** | — |
+| independent *(control)* | 0.177 | **0/4** | — |
+| **regen-basic** | **0.037** | **1/4** | **0.4s** |
+| sdv-copula | 0.064 | **1/4** | 4.1s |
+| sdv-ctgan | 0.091 | **0/4** | 91s |
+
+Three things this says, none of them flattering by default:
+
+**No practical generator preserves the conclusion** — the best result from
+any of them is one coefficient out of four, and every one of them passes the
+ordinary quality checks while doing it. The gap between "looks right" and
+"is right" is not a quirk of this implementation; it reproduces across the
+field.
+
+**This repo is competitive but not special.** It ties the industry standard
+on the conclusion, edges it on correlation structure, and runs ten times
+faster. It is the same family of method, and it inherits the same
+weaknesses — including the categorical one, which SDV's copula has for
+exactly the same structural reason.
+
+**CTGAN genuinely beats both copulas on categorical structure** once given
+enough training (0.370 against 0.575, on the second table in the results),
+because it doesn't rank categories. It still fails the threshold, and costs
+~2,500× the time. Worth knowing rather than hiding: the approach used here
+is not the best available at that particular thing.
+
+What isn't available elsewhere is the middle column. SDV ships no verdict on
+whether a declared analysis survived — measuring that requires being told
+which analysis matters. That is the contribution: not a better generator, but
+refusing to report success without checking the thing that decides whether
+the data was any use.
+
+---
+
+## How it works
+
+### Simulating a table
 
 ```bash
 synth generate mytable.csv --n-rows 500 --out synth-output/
@@ -142,7 +242,7 @@ by construction, and a duplicate guard checks for them anyway. This is *not*
 differential privacy; it prevents reproducing a real record's attributes, and
 makes no claim about what can be inferred in aggregate.
 
-## Checking the conclusion
+### Checking the conclusion
 
 Fidelity checks answer "does this look right." They cannot answer "would
 someone acting on this be right," because that depends on a specific
@@ -171,94 +271,6 @@ The certificate carries the real estimate and its uncertainty — aggregate
 numbers, not rows — so someone holding only the synthetic data can re-run
 the check themselves and confirm the verdict, without ever seeing the real
 records.
-
-## What happened when the check was pointed at the simulator
-
-`python examples/decision_check/run_demo.py` — a real public dataset of
-30,000 people, one regression, three sources. The subject matter is
-incidental; substitute any table where someone fits a model and acts on the
-coefficients.
-
-```
-source                             verdict      pay_delay_1   utilization     log_limit           age
------------------------------------------------------------------------------------------------------
-TRUTH (the real data)              —           +0.714    -0.369    -0.314    +0.010
-bootstrap   (positive control)     matches     +0.714 ✓  -0.367 ✓  -0.329 ✓  +0.010 ✓
-independent (negative control)     DIVERGES    -0.017 ✗  -0.031 ✗  +0.006 ✗  +0.001 ✗
-simulator   (this repo's output)   DIVERGES    +0.422 ✗  -0.224 ✗  -0.208 ✗  +0.009 ✓
-```
-
-The two controls confirm the checker works. A plain resample of the real
-data reproduces the conclusion, as it must — if that failed, the checker
-would be broken. The negative control is the simulator's own output with
-each column then shuffled on its own, so the distributions are *identical*
-and only the joint structure is destroyed; it diverges on everything, which
-is precisely the failure the correlation check was built to catch.
-
-**And the simulator's own output diverges too — on three of four
-coefficients.** Its own fidelity check passed: distributions matched,
-correlation delta 0.037, comfortably inside threshold. Anyone trusting that
-verdict would have shipped it. The independent check says a decision made
-from that data lands somewhere different from the truth — `pay_delay_1`
-comes back at +0.42 against a real +0.71, an effect understated by 41%.
-
-This is the honest result rather than the flattering one, and it is the most
-useful thing in the repo. It is not a bug in either half; it is a real
-property of this class of generator. A copula reproduces a particular
-*shape* of dependence, and a logistic regression's coefficients depend on
-structure that shape doesn't fully capture. Matching distributions and
-matching correlations is genuinely not sufficient for matching conclusions.
-
-The narrower generator that *would* close this gap — one that models the
-predictors more richly and draws the outcome from a fitted conditional model,
-built against a declared analysis rather than general resemblance — is a
-different tool than a general-purpose simulator, and isn't in this repo.
-
-**What to take from it**: if you simulate data and something downstream
-depends on a specific relationship in it, verify that relationship
-explicitly. Do not infer it from the fact that the data looks right.
-
-## How it compares to other tools
-
-Full numbers and method: [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md).
-Measured against SDV — the most widely used synthetic-tabular library —
-using both its Gaussian copula and CTGAN, plus the two controls.
-
-On the real 30k-row table with a declared analysis:
-
-| generator | correlation Δ | **conclusion kept** | time |
-|---|---|---|---|
-| bootstrap *(control)* | 0.006 | **4/4** | — |
-| independent *(control)* | 0.177 | **0/4** | — |
-| **regen-basic** | **0.037** | **1/4** | **0.4s** |
-| sdv-copula | 0.064 | **1/4** | 4.1s |
-| sdv-ctgan | 0.091 | **0/4** | 91s |
-
-Three things this says, none of them flattering by default:
-
-**No practical generator preserves the conclusion** — the best result from
-any of them is one coefficient out of four, and every one of them passes the
-ordinary quality checks while doing it. The gap between "looks right" and
-"is right" is not a quirk of this implementation; it reproduces across the
-field.
-
-**This repo is competitive but not special.** It ties the industry standard
-on the conclusion, edges it on correlation structure, and runs ten times
-faster. It is the same family of method, and it inherits the same
-weaknesses — including the categorical one, which SDV's copula has for
-exactly the same structural reason.
-
-**CTGAN genuinely beats both copulas on categorical structure** once given
-enough training (0.370 against 0.575, on the second table in the results),
-because it doesn't rank categories. It still fails the threshold, and costs
-~2,500× the time. Worth knowing rather than hiding: the approach used here
-is not the best available at that particular thing.
-
-What isn't available elsewhere is the middle column. SDV ships no verdict on
-whether a declared analysis survived — measuring that requires being told
-which analysis matters. That is the contribution: not a better generator, but
-refusing to report success without checking the thing that decides whether
-the data was any use.
 
 ## Reading the code
 
@@ -293,10 +305,12 @@ dependency on a solver whose behavior could drift between versions.
 - **Rows are treated as independent.** Nothing sequential — no time series,
   no ordering, no per-entity history.
 - **Not differential privacy.** See the privacy note above.
-- **One dataset's worth of evidence.** The finding above is a single real
-  dataset and a single analysis. It is a real result, not a general law; the
-  honest next step is running the same check across more tables and more
-  analyses to see how far the pattern holds.
+- **One dataset's worth of evidence here.** The finding above is a single real
+  dataset and a single analysis. It is a real result, not a general law. The
+  same failure has since been replicated on a second dataset and a second model
+  family, ordinary least squares on California housing, in
+  [`regen-synth`](https://github.com/uz0000/regen-synth/blob/main/FINDINGS.md).
+  That is two points, not a law.
 
 ## Install
 
@@ -326,6 +340,22 @@ tested, so the pins are known-good rather than known-necessary. The one
 confirmed case of a version bump changing a result was in an earlier,
 since-removed module that used scikit-learn, which this codebase no longer
 depends on at all.
+
+## Where to find things
+
+| You want | Go to |
+|---|---|
+| What was found | [the finding](#the-finding-this-repos-own-simulator-fails-its-own-question), above |
+| The per-coefficient table | [`examples/decision_check/RESULTS.md`](examples/decision_check/RESULTS.md) |
+| How it compares to SDV and CTGAN | [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md) |
+| Claims that were revised, and why | [`CORRECTIONS.md`](CORRECTIONS.md) |
+| What the code does, file by file | [Reading the code](#reading-the-code), above |
+| What this does not do | [Scope and limits](#scope-and-limits), above |
+| The larger system this came from | [`regen-synth`](https://github.com/uz0000/regen-synth) |
+
+Both result tables are written by the scripts that produce them and carry a
+generated-file header. This README links to them rather than restating their
+numbers, so a document cannot drift from a run.
 
 ## License
 
