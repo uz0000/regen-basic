@@ -14,6 +14,16 @@ But looking right and *supporting the same conclusion* are different
 properties, and the second one is what actually matters the moment anybody
 acts on the result.
 
+**What we found.** Every generator put through this test failed it — this repo's
+simulator, SDV's Gaussian copula, and CTGAN alike. Each one passes the ordinary
+quality checks first: the columns have the right spread, the relationships
+between them land inside tolerance. Then the declared analysis is refit on the
+output and the coefficients have moved. The gap between "looks right" and "is
+right" is not a quirk of one implementation; it reproduces across every method
+tried here and in [`regen-synth`](https://github.com/uz0000/regen-synth), which
+adds noise injection, SMOTE and a generator built specifically to close the gap.
+None of them retained the conclusion reliably.
+
 So this repo is built as two halves that argue with each other:
 
 | | | |
@@ -42,7 +52,7 @@ imports to whichever was installed last and the CLIs shadow each other.
 
 ---
 
-## The finding: this repo's own simulator fails its own question
+## The finding: no generator preserves the conclusion — this one included
 
 `python examples/decision_check/run_demo.py` — a real public dataset of
 30,000 people, one regression, three sources. The subject matter is
@@ -109,11 +119,16 @@ repo's [`FINDINGS.md`](https://github.com/uz0000/regen-synth/blob/main/FINDINGS.
 depends on a specific relationship in it, verify that relationship
 explicitly. Do not infer it from the fact that the data looks right.
 
-## How it compares to other tools
+## The same result against the industry standard
 
-Full numbers and method: [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md).
-Measured against SDV — the most widely used synthetic-tabular library —
-using both its Gaussian copula and CTGAN, plus the two controls.
+The failure is not particular to the simulator in this repo. Measured against
+SDV, the most widely used synthetic-tabular library, using both its Gaussian
+copula and CTGAN, no generator preserves the declared analysis — the best result
+from any of them is one coefficient out of four, and every one of them passes the
+ordinary quality checks while doing it.
+
+Full numbers and method: [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md),
+both controls included.
 
 On the real 30k-row table with a declared analysis:
 
@@ -125,13 +140,7 @@ On the real 30k-row table with a declared analysis:
 | sdv-copula | 0.064 | **1/4** | 4.1s |
 | sdv-ctgan | 0.091 | **0/4** | 91s |
 
-Three things this says, none of them flattering by default:
-
-**No practical generator preserves the conclusion** — the best result from
-any of them is one coefficient out of four, and every one of them passes the
-ordinary quality checks while doing it. The gap between "looks right" and
-"is right" is not a quirk of this implementation; it reproduces across the
-field.
+Two further things this says, neither of them flattering:
 
 **This repo is competitive but not special.** It ties the industry standard
 on the conclusion, edges it on correlation structure, and runs ten times
@@ -360,7 +369,7 @@ depends on at all.
 
 | You want | Go to |
 |---|---|
-| What was found | [the finding](#the-finding-this-repos-own-simulator-fails-its-own-question), above |
+| What was found | [the finding](#the-finding-no-generator-preserves-the-conclusion--this-one-included), above |
 | The per-coefficient table | [`examples/decision_check/RESULTS.md`](examples/decision_check/RESULTS.md) |
 | Whether the explanation is true | [`examples/decision_check/MECHANISM.md`](examples/decision_check/MECHANISM.md) |
 | How it compares to SDV and CTGAN | [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md) |
