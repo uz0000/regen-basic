@@ -50,8 +50,6 @@ imports to whichever was installed last and the CLIs shadow each other.
 
 ---
 
----
-
 ## The finding: no generator preserves the conclusion — this one included
 
 `python examples/decision_check/run_demo.py` — a real public dataset of
@@ -210,11 +208,14 @@ strongest way to re-identify someone.
 
 ```
 $ synth generate examples/readings.csv --n-rows 2000 --out synth-output/
+[synth] 1 of 1 table(s) failed their checks: readings
+[synth] the data was still written — inspect it, or pass --allow-fail to exit 0 anyway
 readings: 2000 real rows -> 2000 synthetic rows
   fidelity: FAIL
     numeric correlations   delta 0.037  (limit 0.25)  ok
     category vs. measure   delta 0.595  (limit 0.1)  TOO FAR [worst: temp_c by region]
-  privacy: 0 row(s) landed on a real record and were moved off
+  privacy: 0 row(s) landed on a real record and were moved off  (no synthetic row copies a real one)
+  -> synth-output/readings_synthetic.csv
 ```
 
 That is the sample table failing, on purpose and correctly. The numeric
@@ -371,6 +372,7 @@ depends on at all.
 |---|---|
 | What was found | [the finding](#the-finding-no-generator-preserves-the-conclusion--this-one-included), above |
 | The per-coefficient table | [`examples/decision_check/RESULTS.md`](examples/decision_check/RESULTS.md) |
+| How to run the demo and read its output | [`examples/decision_check/README.md`](examples/decision_check/README.md) |
 | Whether the explanation is true | [`examples/decision_check/MECHANISM.md`](examples/decision_check/MECHANISM.md) |
 | How it compares to SDV and CTGAN | [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md) |
 | Claims that were revised, and why | [`CORRECTIONS.md`](CORRECTIONS.md) |
