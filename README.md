@@ -98,6 +98,10 @@ coefficient shrinks with it.
 Matching distributions and matching correlations is genuinely not sufficient for
 matching conclusions.
 
+The arithmetic underneath all of this — what a coefficient is, how two of them are
+judged to agree or disagree, and why a copula cannot represent a jump — is set out
+in plain language in [`MATH.md`](MATH.md).
+
 Every claim in the two paragraphs above is measured rather than argued:
 [`examples/decision_check/MECHANISM.md`](examples/decision_check/MECHANISM.md)
 (`python examples/decision_check/mechanism_check.py`) states each one, measures
@@ -376,6 +380,7 @@ depends on at all.
 | Whether the explanation is true | [`examples/decision_check/MECHANISM.md`](examples/decision_check/MECHANISM.md) |
 | How it compares to SDV and CTGAN | [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md) |
 | Claims that were revised, and why | [`CORRECTIONS.md`](CORRECTIONS.md) |
+| The math behind every number, in plain language | [`MATH.md`](MATH.md) |
 | What the code does, file by file | [Reading the code](#reading-the-code), above |
 | What this does not do | [Scope and limits](#scope-and-limits), above |
 | The larger system this came from | [`regen-synth`](https://github.com/uz0000/regen-synth) |
