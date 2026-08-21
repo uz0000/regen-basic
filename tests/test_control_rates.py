@@ -3,16 +3,19 @@
 The README and the demo README used to say the positive control "must match" and
 that a divergence meant the checker was broken. That is false, and misleading in
 a way that matters: matching requires all four coefficients to agree at once,
-each compared at 95%, so a resample of the real rows diverges on a small
-fraction of seeds by chance. A reader who re-ran with a different seed, saw the
-control diverge, and followed that instruction would have concluded the tool was
-broken when it was working as designed. CORRECTIONS.md entry 4.
+each compared at 95%, so a resample of the real rows diverges on a small fraction
+of seeds by chance. A reader who re-ran with a different seed, saw the control
+diverge, and followed that instruction would have concluded the tool was broken
+when it was working as designed. CORRECTIONS.md entry 4.
 
-These pin what is actually true so the prose cannot drift back: the committed
-demo seed matches, some seeds do not, and the negative control always diverges.
+**These assert properties, not individual verdicts.** Pinning "seed 28 diverges"
+would be pinning a z of 1.999 against a 1.96 cutoff — a margin of 0.04, which a
+different numeric build moves. The sibling repo learned this by failing on Python
+3.10 while passing on 3.11 and 3.12. So the sweeps below assert that *some* seeds
+diverge and that most do not, which no build difference can flip.
 
-Specific seeds are used rather than a sweep to keep the suite fast. The full rate
-(3.67%, 11 of 300) comes from sweeping `seed` in the parametrised test below.
+Full measured rate: 11/300 = 3.67% (95% CI 1.5-5.8%). The real fit is computed
+once and reused, so the sweep costs well under a second.
 """
 
 from pathlib import Path
@@ -21,13 +24,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from certify.certifier import certify_dataset
+from certify.estimand import certify, fit_estimand
 from contracts.types import EstimandSpec
 
 DATA = Path(__file__).resolve().parent.parent / "examples" / "decision_check" / "credit_default.csv"
 PREDICTORS = ["pay_delay_1", "utilization", "log_limit", "age"]
-DEMO_SEED = 2                       # what run_demo.py uses
-DIVERGING_SEEDS = [0, 25, 28, 59]   # found by sweeping 0..59
+DEMO_SEED = 2      # what run_demo.py uses
+SWEEP = 300
 
 
 @pytest.fixture(scope="module")
@@ -40,6 +43,11 @@ def real():
 @pytest.fixture(scope="module")
 def spec():
     return EstimandSpec(outcome="default", predictors=PREDICTORS, family="logit")
+
+
+@pytest.fixture(scope="module")
+def real_fit(real, spec):
+    return fit_estimand(real, spec)
 
 
 def _bootstrap(real, seed):
@@ -57,35 +65,49 @@ def _independent(real, seed):
     return out.reset_index(drop=True)
 
 
+def _verdicts(real, real_fit, spec, builder, n=SWEEP):
+    return [certify(real_fit, fit_estimand(builder(real, s), spec), spec) for s in range(n)]
+
+
 class TestThePositiveControl:
 
-    def test_the_committed_demo_seed_matches(self, real, spec):
-        """The published table has to be reproducible."""
-        assert certify_dataset(real, _bootstrap(real, DEMO_SEED), spec)["certified"] is True
+    def test_the_committed_demo_seed_matches(self, real, real_fit, spec):
+        """The published table has to be reproducible, so this one IS pinned."""
+        assert certify(real_fit, fit_estimand(_bootstrap(real, DEMO_SEED), spec), spec)["certified"] is True
 
-    @pytest.mark.parametrize("seed", DIVERGING_SEEDS)
-    def test_some_seeds_diverge_by_chance(self, real, spec, seed):
-        """Four coefficients, each a 95% test, so divergence happens without a bug."""
-        assert certify_dataset(real, _bootstrap(real, seed), spec)["certified"] is False
+    def test_it_diverges_on_some_seeds(self, real, real_fit, spec):
+        """The "must match" claim is false. Measured 3.67% over 300 seeds."""
+        diverged = sum(1 for c in _verdicts(real, real_fit, spec, _bootstrap)
+                       if not c["certified"])
+        assert diverged > 0, "expected chance divergences; the 'must match' claim would be true"
 
-    def test_a_chance_divergence_is_a_near_miss(self, real, spec):
-        """It sits near the threshold, unlike the simulator's real failures."""
-        cert = certify_dataset(real, _bootstrap(real, DIVERGING_SEEDS[0]), spec)
-        flagged = [t for t in cert["targets"] if t["preserved"] is False]
-        assert flagged
-        assert max(abs(t["z"]) for t in flagged) < 3.0
+    def test_but_only_a_small_minority_of_the_time(self, real, real_fit, spec):
+        """It is still a working positive control."""
+        diverged = sum(1 for c in _verdicts(real, real_fit, spec, _bootstrap)
+                       if not c["certified"])
+        assert diverged < 0.20 * SWEEP, f"{diverged}/{SWEEP} diverged — too high for a positive control"
+
+    def test_chance_divergences_are_near_misses(self, real, real_fit, spec):
+        """They sit just past the cutoff, unlike the simulator's real failures."""
+        worst = []
+        for cert in _verdicts(real, real_fit, spec, _bootstrap):
+            flagged = [t for t in cert["targets"] if t["preserved"] is False]
+            if flagged:
+                worst.append(max(abs(t["z"]) for t in flagged))
+        assert worst, "expected at least one divergence in the sweep"
+        assert max(worst) < 3.4, f"a control divergence reached z={max(worst):.2f}"
 
 
 class TestTheNegativeControl:
 
-    @pytest.mark.parametrize("seed", [0, 1, 2, 3])
-    def test_shuffled_columns_always_diverge(self, real, spec, seed):
+    def test_shuffled_columns_never_match(self, real, real_fit, spec):
         """The one absolute claim about the controls that actually holds."""
-        assert certify_dataset(real, _independent(real, seed), spec)["certified"] is False
+        matched = sum(1 for c in _verdicts(real, real_fit, spec, _independent, n=40)
+                      if c["certified"])
+        assert matched == 0
 
-    def test_the_coefficients_the_data_pinned_down_always_fail(self, real, spec):
-        for seed in range(3):
-            cert = certify_dataset(real, _independent(real, seed), spec)
+    def test_the_coefficients_the_data_pinned_down_always_fail(self, real, real_fit, spec):
+        for seed, cert in enumerate(_verdicts(real, real_fit, spec, _independent, n=20)):
             by_name = {t["coefficient"]: t for t in cert["targets"]}
             for name in ("pay_delay_1", "utilization", "log_limit"):
                 assert by_name[name]["preserved"] is False, f"{name} survived at seed {seed}"

@@ -46,9 +46,12 @@ distribution *identical* and destroys only the joint structure — it must diver
 
 Neither is absolute. Matching needs all four coefficients to agree at once and
 each is a 95% test, so `bootstrap` is refused on about **3.7% of seeds** (11 of
-300) from chance alone — seeds 0, 25, 28 and 59 diverge, while the committed
-table uses seed 2, which matches. A divergence there is not a broken checker; it
-is four 95% tests doing what four 95% tests do. The arithmetic is in
+300) from chance alone. The committed table uses seed 2, which matches; a
+divergence on another seed is not a broken checker, it is four 95% tests doing
+what four 95% tests do. Which seeds diverge is not stable across machines and is
+deliberately not listed — a chance divergence sits within about 0.1 of the
+cutoff, and a different numeric build moves a borderline score by that much. The
+arithmetic is in
 [`../../MATH.md`](../../MATH.md), the correction in
 [`../../CORRECTIONS.md`](../../CORRECTIONS.md) entry 4.
 

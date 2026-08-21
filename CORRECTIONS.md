@@ -83,7 +83,6 @@ compare against the same real fit, 300 seeds:
 
 ```
 positive control refused   11 / 300  = 3.67%   (95% CI 1.5% - 5.8%)
-seeds that diverge         0, 25, 28, 59
 committed demo seed (2)    matches
 ```
 

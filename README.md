@@ -355,7 +355,7 @@ dependency on a solver whose behavior could drift between versions.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
-pytest tests/ -q                        # 46 tests
+pytest tests/ -q                        # 41 tests
 python examples/make_sample_data.py     # a demo table to try the CLI on
 synth generate examples/readings.csv --n-rows 500 --out synth-output/
 ```
