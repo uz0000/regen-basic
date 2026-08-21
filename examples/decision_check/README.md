@@ -40,11 +40,17 @@ question anyone can answer — a table supports an unlimited number of analyses.
 ## The three sources
 
 **Two controls, which exist to show the check discriminates.** `bootstrap`
-resamples the real rows and must match; if it ever diverges, the checker is
-broken rather than the data. `independent` takes the simulator's own output and
-shuffles each column on its own, which leaves every column's distribution
-*identical* and destroys only the joint structure — it must diverge on
-everything.
+resamples the real rows and should match. `independent` takes the simulator's own
+output and shuffles each column on its own, which leaves every column's
+distribution *identical* and destroys only the joint structure — it must diverge.
+
+Neither is absolute. Matching needs all four coefficients to agree at once and
+each is a 95% test, so `bootstrap` is refused on about **3.7% of seeds** (11 of
+300) from chance alone — seeds 0, 25, 28 and 59 diverge, while the committed
+table uses seed 2, which matches. A divergence there is not a broken checker; it
+is four 95% tests doing what four 95% tests do. The arithmetic is in
+[`../../MATH.md`](../../MATH.md), the correction in
+[`../../CORRECTIONS.md`](../../CORRECTIONS.md) entry 4.
 
 **One real generator.** `simulator` is this repo's output, from `simulate/`.
 

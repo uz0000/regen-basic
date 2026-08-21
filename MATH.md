@@ -146,6 +146,30 @@ coefficients are preserved. An analysis whose third number is wrong is a wrong
 analysis, and averaging four coefficients into one score would let a broken one
 hide behind three intact ones. A conclusion is not partly true.
 
+**What that costs, and it is not zero.** Each coefficient is its own 95% test, so
+a genuinely faithful simulator is refused whenever any one of them lands in its 5%
+tail — and the chance of that compounds with how many coefficients you declare.
+Measured on the positive control, 300 seeds:
+
+```
+positive control refused   11 / 300  = 3.67%   (95% CI 1.5% - 5.8%)
+```
+
+Two things follow. A refused positive control is normal rather than a sign of a
+broken checker — this repo previously documented it the other way round, which is
+[`CORRECTIONS.md`](CORRECTIONS.md) entry 4. And a pass rate only means something
+against a fixed declared analysis, since a two-predictor analysis is easier to
+match than a ten-predictor one at the same underlying fidelity.
+
+**One assumption worth naming.** The formula above adds the two uncertainties as
+though the estimates were unrelated. They are not — the simulated table is built
+from the real one, so the two move together, and the exact expression subtracts a
+covariance term this code does not compute. Leaving it out makes the combined
+uncertainty **too large**, the score **too small**, and the check biased toward
+saying "preserved." Since the finding here is that simulators **fail**, that bias
+understates the problem rather than inventing it — but it does mean the tool's
+failure mode is false reassurance, which is worth stating plainly.
+
 **Why a stranger can check it.** The certificate carries the real coefficient and
 its standard error — two summary numbers, not any rows. Anyone holding only the
 simulated table can refit, get their own two numbers, and recompute `z`. The

@@ -4,7 +4,7 @@ Claims this repo published and then revised. Each entry states what was claimed,
 what was wrong with it, what the re-check showed, and what changed.
 
 The point of keeping this is that a repo which only shows the claims that
-survived is not showing its method. All three below were found the same way: by
+survived is not showing its method. All four below were found the same way: by
 going back to a statement and asking what evidence was actually behind it.
 
 ---
@@ -61,6 +61,48 @@ counts, on both tables.
 [`examples/comparison/RESULTS.md`](examples/comparison/RESULTS.md) so the
 reproducibility claim the pinning discipline makes is checked rather than
 asserted.
+
+---
+
+## 4. "If the positive control ever diverges, the checker is broken"
+
+**Claimed.** The README and the demo's own README both said a resample of the
+real rows *must* match, and that a divergence meant the checker was broken rather
+than the data. The demo README added that the negative control "must diverge on
+everything."
+
+**What was wrong.** Both are false, and the first is the damaging one. Matching
+requires all four coefficients to agree at once, and each is a 95% test, so four
+of them produce an occasional flag with nothing wrong. A reader re-running with a
+different seed would see the control diverge and follow this repo's own
+instruction to conclude the tool was broken — a false alarm about the instrument,
+invited by the documentation. Nothing here measured the rate.
+
+**Re-measured.** Under the demo's exact configuration — resample 30,000 rows,
+compare against the same real fit, 300 seeds:
+
+```
+positive control refused   11 / 300  = 3.67%   (95% CI 1.5% - 5.8%)
+seeds that diverge         0, 25, 28, 59
+committed demo seed (2)    matches
+```
+
+The rate is lower here than in [`regen-synth`](https://github.com/uz0000/regen-synth),
+where the same control is refused about 12% of seeds, and the difference is
+instructive rather than incidental: that repo resamples 6,000 rows against a
+30,000-row real fit, so its synthetic estimate is much noisier and the comparison
+has more room to land in a tail. Same rule, same data, different sample size,
+three times the false-refusal rate.
+
+**What changed.** Both documents now say what the control actually does, with the
+rate and the diverging seeds named so a reader can reproduce one deliberately
+rather than meet one by accident. The committed table is unaffected — seed 2 still
+matches. [`MATH.md`](MATH.md) explains the compounding, and
+`tests/test_control_rates.py` pins it.
+
+**What did not change.** No reported result moves. The simulator's failures sit
+far from the threshold, and this property biases the check toward refusing good
+output, not toward passing bad output.
 
 ---
 

@@ -69,11 +69,19 @@ written by the script that produced it.
 | **simulator** *(this repo's output)* | **+0.422** | **diverges** |
 
 The two controls confirm the checker works. A plain resample of the real
-data reproduces the conclusion, as it must — if that failed, the checker
-would be broken. The negative control is the simulator's own output with
-each column then shuffled on its own, so the distributions are *identical*
-and only the joint structure is destroyed; it diverges on everything, which
-is precisely the failure the correlation check was built to catch.
+data reproduces the conclusion, as it should. The negative control is the
+simulator's own output with each column then shuffled on its own, so the
+distributions are *identical* and only the joint structure is destroyed; it
+diverges, which is precisely the failure the correlation check was built to
+catch.
+
+Neither control is absolute, which is worth knowing before you re-run with a
+different seed. Matching requires all four coefficients to agree at once and each
+is a 95% test, so the positive control is refused on about **3.7% of seeds**
+(11 of 300) by chance alone — roughly one run in twenty-seven, and not a sign
+the checker is broken. See [`MATH.md`](MATH.md) and
+[`CORRECTIONS.md`](CORRECTIONS.md) entry 4; both rates are pinned in
+`tests/test_control_rates.py`.
 
 **And the simulator's own output diverges too, on three of four
 coefficients.** Its own fidelity check passed: every column's distribution
@@ -347,7 +355,7 @@ dependency on a solver whose behavior could drift between versions.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
-pytest tests/ -q                        # 35 tests
+pytest tests/ -q                        # 46 tests
 python examples/make_sample_data.py     # a demo table to try the CLI on
 synth generate examples/readings.csv --n-rows 500 --out synth-output/
 ```
