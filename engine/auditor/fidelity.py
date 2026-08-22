@@ -231,7 +231,13 @@ def _tvd_discrete(real: pd.Series, synth: pd.Series, config: AuditorConfig) -> f
 
     # High cardinality — compare top-K categories, group rest into "other".
     k = min(n_unique, max(20, ns // 5))
-    top_k = set(real_clean.value_counts().nlargest(k).index)
+    # Deterministic tie-break. `nlargest(k)` picks arbitrarily among categories
+    # sharing the k-th count, and which ones depends on pandas' internal
+    # ordering — so the same data could score differently on another platform.
+    # Ordering by (count descending, category ascending) makes the set unique.
+    counts = real_clean.value_counts()
+    ordered = sorted(counts.index, key=lambda c: (-int(counts[c]), str(c)))
+    top_k = set(ordered[:k])
 
     real_top_mass = (real_clean.isin(top_k)).sum() / nr
     synth_top_mass = (synth_clean.isin(top_k)).sum() / ns

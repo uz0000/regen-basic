@@ -237,3 +237,32 @@ def test_eta_squared_measures_group_separation():
     split = pd.Series(np.concatenate([rng.normal(0, 0.1, 500), rng.normal(50, 0.1, 500)]))
     assert _eta_squared(g, same, 20) < 0.05
     assert _eta_squared(g, split, 20) > 0.95
+
+
+def test_high_cardinality_tvd_is_reproducible():
+    """The top-K set must not depend on how the rows happen to be ordered.
+
+    `value_counts().nlargest(k)` breaks ties arbitrarily among categories sharing
+    the k-th count, so the same data could score differently on another platform.
+    The sibling repo caught this as a CI failure on Linux against a passing macOS
+    run; the same code path exists here.
+    """
+    import numpy as np
+    import pandas as pd
+
+    from engine.auditor.fidelity import AuditorConfig, _tvd_discrete
+
+    rng = np.random.default_rng(42)
+    categories = [f"cat_{i}" for i in range(500)]
+    probs = np.array([1.0 / (i + 1) for i in range(500)])
+    probs = probs / probs.sum()
+    real = pd.Series(rng.choice(categories, size=1000, p=probs))
+    synth = pd.Series(rng.choice(categories, size=200, p=probs))
+
+    config = AuditorConfig()
+    scores = {
+        round(_tvd_discrete(real.sample(frac=1.0, random_state=s).reset_index(drop=True),
+                            synth, config), 12)
+        for s in range(15)
+    }
+    assert len(scores) == 1, f"TVD depends on row order: {sorted(scores)}"
